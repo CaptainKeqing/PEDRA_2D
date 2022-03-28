@@ -1,0 +1,52 @@
+import tensorflow as tf
+
+
+class FCQN:
+    # TODO: Now im reshaping my input to be (1, 224, 224, 1), only to unshape it back to 2 dimensions afterwards.
+    #  To optimise, see hwo to change the layers to accept 2D rather than 4D
+
+    def __init__(self, X):    # TODO: NOW, HARDCODED AS 52x52 action space
+        self.X = X
+        # print(self.X.shape)
+        self.conv1 = self.conv(self.X, k=5, out=96, s=1, p='VALID')
+        # print("SELF con1 shape", self.conv1.shape)
+        self.maxpool1 = tf.nn.max_pool(self.conv1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding="VALID")
+        # print("SELF maxpool1 shape", self.maxpool1.shape)
+
+        self.conv2 = self.conv(self.maxpool1, k=5, out=64, s=1, p="VALID")
+        # print("SELF con2 shape", self.conv2.shape)
+        self.maxpool2 = tf.nn.max_pool(self.conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="VALID")
+        # print("SELF maxpool1 shape", self.maxpool2.shape)
+
+        self.conv3 = self.conv(self.maxpool2, k=3, out=64, s=1, p="SAME")
+        # print("SELF con3 shape", self.conv3.shape)
+
+        # Advantage Network
+        self.advantage = self.conv(self.conv3, k=1, out=1, s=1, p='VALID')
+        # print("SELF advantage shape", self.advantage.shape)
+
+        # Value Network (Global max pooling)
+        self.value = tf.nn.max_pool(self.conv3, ksize=[1, 52, 52, 1], strides=[1, 1, 1, 1], padding='VALID')        # HARDCODED GLOBAL MAX POOL SIZE
+        # print("SELF value shape", self.value.shape)
+
+        # Q value of each point action
+        self.output = tf.reshape((self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, keep_dims=True)))[0, :, :, 0], [-1])
+        # self.output = [item for sublist in self.output0 for item in sublist]
+        print(self.output.shape)
+        # flattened_output = tf.reshape(self.output, [-1])
+        # print('flatten', flattened_output.shape)
+        # arr = np.array([[3, 6], [4, 5]])
+        # print(np.ravel_multi_index(arr, self.output.shape))
+        # print(int(self.output.shape[0])**2)
+
+    @staticmethod
+    def conv(input, k, out, s, p, trainable=True):
+        W = tf.Variable(tf.truncated_normal(shape=(k, k, int(input.shape[3]), out), stddev=0.05), trainable=trainable)
+        b = tf.Variable(tf.truncated_normal(shape=[out], stddev=0.05), trainable=trainable)
+
+        conv_kernel_1 = tf.nn.conv2d(input, W, [1, s, s, 1], padding=p)
+        # print("CONV KERNEL 1 SHAPE", conv_kernel_1.shape)
+        bias_layer_1 = tf.nn.bias_add(conv_kernel_1, tf.Variable(b, trainable))
+        # print("bias layer 1 SHAPE", bias_layer_1.shape)
+
+        return tf.nn.relu(bias_layer_1)
