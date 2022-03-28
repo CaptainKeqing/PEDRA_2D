@@ -147,7 +147,7 @@ def get_err_FCQN(data_tuple, agent, gamma, Q_clip):   # basically a simplified v
 
 
 def policy_FCQN(epsilon, curr_state_tuple, iter, b, epsilon_model, agent):
-    base = 0.4
+    base = 0.00
     epsilon_ceil = 0.95
     if epsilon_model == 'linear':
         epsilon = base + epsilon_ceil * iter / b
