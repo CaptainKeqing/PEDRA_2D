@@ -82,8 +82,8 @@ while True:
         safe_travel = None
     else:
         G = rrt_BHM.Graph(startpos, goalpos, min_max)
-        G = rrt_BHM.RRT_n_star(G, drone.BHM, n_iter=500, radius=5,      # RRT Params must be modified based on the environment, but this is not an issue of the agent
-                               stepSize=12, crash_radius=5, n_retries_allowed=0)
+        G = rrt_BHM.RRT_n_star(G, drone.BHM, n_iter=300, radius=5,      # RRT Params must be modified based on the environment, but this is not an issue of the agent
+                               stepSize=14, crash_radius=5, n_retries_allowed=0)
         if G.success:
             path = rrt_BHM.dijkstra(G)
             # print('start', drone.position)
@@ -113,24 +113,22 @@ while True:
     # In very rare cases (happened once after 1500 iters), drone will actually get stuck in a wall. Crash checking.
     # If clip into wall, just do a hard reset and dont do any training for that move.
     # print('drone position:', drone.position)
-    neighbours = neighbours_including_center(drone.position)    # radius of 1 only, crash shouldn't happen normally
-
-    if neighbours is None or any(gt[p[1], p[0]] == 0 for p in neighbours):   # drone position is x, y. However to index a 2D array, index by row (y) then col (x)
-        print("CRASH OCCURED")
-        drone.reset(fresh_BHM=sbhm.SBHM(gamma=gamma, cell_resolution=cell_res,
-                                        cell_max_min=min_max),
-                    starting_pos=valid_starting_points[0])
-        current_state = drone.get_state()
-        # don't +1 to episode, treat as same episode and reset move and return
-        moves_taken = 0
-        cum_return = 0
-        continue  # skip rest of the iteration
+    # neighbours = neighbours_including_center(drone.position)    # radius of 1 only, crash shouldn't happen normally
+    #
+    # if neighbours is None or any(gt[p[1], p[0]] == 0 for p in neighbours):   # drone position is x, y. However to index a 2D array, index by row (y) then col (x)
+    #     print("CRASH OCCURED")
+    #     drone.reset(fresh_BHM=sbhm.SBHM(gamma=gamma, cell_resolution=cell_res,
+    #                                     cell_max_min=min_max),
+    #                 starting_pos=valid_starting_points[0])
+    #     current_state = drone.get_state()
+    #     # don't +1 to episode, treat as same episode and reset move and return
+    #     moves_taken = 0
+    #     cum_return = 0
+    #     continue  # skip rest of the iteration
 
     reward = drone.reward_gen(path_length, goal_in_unknown_space=goal_in_unknown_space, safe_travel=safe_travel)
 
-    new_state = drone.get_state()
-
-    # check for completeness, only if moved
+    # check for completeness and update state, only if moved
     done = False
     if path_length != 0:
         free_mask = drone.get_free_mask()
@@ -146,6 +144,11 @@ while True:
         if finished_ratio > 0.80:
             done = True
             reward += 1
+
+        new_state = drone.get_state()
+
+    else:
+        new_state = current_state
 
     # TRAINING DONE HERE
     cum_return = cum_return + reward
