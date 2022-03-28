@@ -173,7 +173,8 @@ while True:
         cum_return,
         time_exec,
         moves_taken,
-        len(drone.previous_positions),
+        # len(drone.previous_positions),
+        drone.steps_taken,
         reward)
 
     print(s_log)    # TODO: ALSO PRINT TO LOG FILE NEXT TIME

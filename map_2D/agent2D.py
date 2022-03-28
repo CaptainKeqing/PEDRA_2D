@@ -19,7 +19,12 @@ class agent_2D:
         self.qX = np.hstack((qxx.ravel().reshape(-1, 1), qyy.ravel().reshape(-1, 1)))   # used for querying model, resolution arbitrary
 
         self.position = starting_pos
-        self.previous_positions = set()
+        self.previous_position_is_set = False
+        if self.previous_position_is_set:
+            self.previous_positions = set()
+        else:
+            self.previous_positions = None
+        self.steps_taken = 0
         self.range = LIDAR_pixel_range
         self.gt = ground_truth_map
 
@@ -31,8 +36,11 @@ class agent_2D:
         self.previous_BHM = None
 
         self.position = starting_pos
-        self.previous_positions = set()
-
+        if self.previous_position_is_set:
+            self.previous_positions = set()
+        else:
+            self.previous_positions = None
+        self.steps_taken = 0
         self.collect_data()
 
     def move_by_sequence(self, waypoints):
@@ -60,10 +68,14 @@ class agent_2D:
                 # print("previously free pathway turns out to be blocked")
                 return False, path_length
 
-            self.previous_positions.add(self.position)
+            if self.previous_position_is_set:
+                self.previous_positions.add(self.position)
+            else:
+                self.previous_positions = self.position
 
             path_length += np.linalg.norm((self.position[0] - point[0], self.position[1] - point[1]))
             self.position = point
+            self.steps_taken += 1
             self.collect_data()
 
         return True, path_length
@@ -144,8 +156,13 @@ class agent_2D:
 
         px, py = self.position
         curr_position[0, py, px, 0] = 1
-        for prev_pos in self.previous_positions:
-            px, py = prev_pos
-            prev_positions[0, py, px, 0] = 1
+        if self.previous_position_is_set:
+            for prev_pos in self.previous_positions:
+                px, py = prev_pos
+                prev_positions[0, py, px, 0] = 1
+        else:
+            if self.previous_positions is not None:
+                px, py = self.previous_positions
+                prev_positions[0, py, px, 0] = 1    # 1 value only
 
         return sampled_grids, curr_position, prev_positions
