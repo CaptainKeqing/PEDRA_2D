@@ -82,20 +82,21 @@ def getTrainingData(endpoints, agent_pos, max_laser_distance, unoccupied_points_
 
     return np.hstack((points, labels))
 
-def neighbours_including_center(point):
+def neighbours_including_center(point, radius=1):
     """Use only for ground truth checking of crash, 1 radius means 3x3 square
     If pixel at edge, return False because he shouldn't be in the first place, confirm crash (my map has borders)"""
-    if max(point) == 52 or min(point) == 0:
-        return None
-    L = point[0] - 1
-    R = point[0] + 1
-    T = point[1] - 1    # up negative
-    B = point[1] + 1
-    Cx = point[0]
-    Cy = point[1]
-    return [(L, T), (Cx, T), (R, T),
-            (L, Cy), (Cx, Cy), (R, Cy),
-            (L, B), (Cx, B), (R, B)]
+    if radius == 1:
+        if max(point) == 52 or min(point) == 0:
+            return None
+        L = point[0] - 1
+        R = point[0] + 1
+        T = point[1] - 1    # up negative
+        B = point[1] + 1
+        Cx = point[0]
+        Cy = point[1]
+        return [(L, T), (Cx, T), (R, T),
+                (L, Cy), (Cx, Cy), (R, Cy),
+                (L, B), (Cx, B), (R, B)]
 
 def bloom(point, radius, resolution_per_quadrant=60):
     new_points = []
@@ -147,7 +148,7 @@ def get_err_FCQN(data_tuple, agent, gamma, Q_clip):   # basically a simplified v
 
 
 def policy_FCQN(epsilon, curr_state_tuple, iter, b, epsilon_model, agent):
-    base = 0.0
+    base = -0.05
     epsilon_ceil = 0.95
     if epsilon_model == 'linear':
         epsilon = base + epsilon_ceil * iter / b
