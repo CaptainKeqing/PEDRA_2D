@@ -19,7 +19,7 @@ class agent_2D:
         self.qX = np.hstack((qxx.ravel().reshape(-1, 1), qyy.ravel().reshape(-1, 1)))   # used for querying model, resolution arbitrary
 
         self.position = starting_pos
-        self.previous_position_is_set = False
+        self.previous_position_is_set = True
         if self.previous_position_is_set:
             self.previous_positions = set()
         else:
@@ -115,8 +115,8 @@ class agent_2D:
         return mask
 
     def reward_gen(self, length_of_path, goal_in_unknown_space=False, safe_travel=True):
-        alpha = 0.005  # make training process more stable
-        p_coeff = 5  # dictate how much to penalise path length
+        alpha = 0.002  # make training process more stable
+        p_coeff = 2  # dictate how much to penalise path length
 
         if length_of_path == 0:  # no exploration done this iter
             return -1   # penalise failing to find goal, or goal too close to obstacle (accounted for in main code)
@@ -159,7 +159,7 @@ class agent_2D:
         if self.previous_position_is_set:
             for prev_pos in self.previous_positions:
                 px, py = prev_pos
-                prev_positions[0, py, px, 0] = 1
+                prev_positions[0, py, px, 0] = 0.05
         else:
             if self.previous_positions is not None:
                 px, py = self.previous_positions
