@@ -86,7 +86,7 @@ def neighbours_including_center(point, radius=1):
     """Use only for ground truth checking of crash, 1 radius means 3x3 square
     If pixel at edge, return False because he shouldn't be in the first place, confirm crash (my map has borders)"""
     if radius == 1:
-        if max(point) == 52 or min(point) == 0:
+        if max(point) == 223 or min(point) == 0:
             return None
         L = point[0] - 1
         R = point[0] + 1
