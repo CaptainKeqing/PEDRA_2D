@@ -80,10 +80,14 @@ class agent_2D:
         self.previous_positions_map *= 0.9      # DECAY POSITIONS OVER TIME
         self.previous_positions.add(self.position)
         neighbours_inc_c = neighbours_including_center(self.position)
-        for p in neighbours_inc_c:
-            px, py = p
-            value_increment = 0.03 if (p == self.position) else 0.01
-            self.previous_positions_map[0, py, px, 0] += value_increment
+        if neighbours_inc_c is not None:
+            for p in neighbours_inc_c:
+                px, py = p
+                value_increment = 0.03 if (p == self.position) else 0.01
+                self.previous_positions_map[0, py, px, 0] += value_increment
+        else:   # None neighbours means edge
+            px, py = self.position
+            self.previous_positions_map[0, py, px, 0] = 1
 
     def collect_data(self):  # note: the absolute first scan after initialising will take extra long due to SBHM starting
         # s = time.time()
