@@ -19,11 +19,8 @@ class agent_2D:
         self.qX = np.hstack((qxx.ravel().reshape(-1, 1), qyy.ravel().reshape(-1, 1)))   # used for querying model, resolution arbitrary
 
         self.position = starting_pos
-        self.previous_position_is_set = True
-        if self.previous_position_is_set:
-            self.previous_positions = set()
-        else:
-            self.previous_positions = None
+        self.previous_positions = set()
+        self.previous_positions_map = np.zeros((1, 224, 224, 1), dtype=np.float32)
         self.steps_taken = 0
         self.range = LIDAR_pixel_range
         self.gt = ground_truth_map
@@ -36,10 +33,9 @@ class agent_2D:
         self.previous_BHM = None
 
         self.position = starting_pos
-        if self.previous_position_is_set:
-            self.previous_positions = set()
-        else:
-            self.previous_positions = None
+        self.previous_positions = set()
+        self.previous_positions_map = np.zeros((1, 224, 224, 1), dtype=np.float32)
+
         self.steps_taken = 0
         self.collect_data()
 
@@ -57,6 +53,7 @@ class agent_2D:
         self.previous_BHM = deepcopy(self.BHM)
 
         for index, point in enumerate(waypoints):
+
             if point == self.position and index == 0:
                 print("WARNING: Starting pos included in waypoints. This can cause errors. Remove the first point")
 
@@ -68,17 +65,29 @@ class agent_2D:
                 # print("previously free pathway turns out to be blocked")
                 return False, path_length
 
-            if self.previous_position_is_set:
-                self.previous_positions.add(self.position)
-            else:
-                self.previous_positions = self.position
+            # Update previous positions map
+            self.update_prev_pos_map()
 
             path_length += np.linalg.norm((self.position[0] - point[0], self.position[1] - point[1]))
             self.position = point
+
             self.steps_taken += 1
             self.collect_data()
 
         return True, path_length
+
+    def update_prev_pos_map(self):
+        self.previous_positions_map *= 0.9      # DECAY POSITIONS OVER TIME
+        self.previous_positions.add(self.position)
+        neighbours_inc_c = neighbours_including_center(self.position)
+        if neighbours_inc_c is not None:
+            for p in neighbours_inc_c:
+                px, py = p
+                value_increment = 0.03 if (p == self.position) else 0.01
+                self.previous_positions_map[0, py, px, 0] += value_increment
+        else:   # None neighbours means edge
+            px, py = self.position
+            self.previous_positions_map[0, py, px, 0] = 1
 
     def collect_data(self):  # note: the absolute first scan after initialising will take extra long due to SBHM starting
         # s = time.time()
@@ -152,17 +161,8 @@ class agent_2D:
     def get_state(self):
         sampled_grids = self.BHM.predict_proba(self.qX)[:, 1].reshape((1, 224, 224, 1))
         curr_position = np.zeros((1, 224, 224, 1), dtype=int)
-        prev_positions = np.zeros((1, 224, 224, 1), dtype=int)
 
         px, py = self.position
         curr_position[0, py, px, 0] = 1
-        if self.previous_position_is_set:
-            for prev_pos in self.previous_positions:
-                px, py = prev_pos
-                prev_positions[0, py, px, 0] = 0.05
-        else:
-            if self.previous_positions is not None:
-                px, py = self.previous_positions
-                prev_positions[0, py, px, 0] = 1    # 1 value only
 
-        return sampled_grids, curr_position, prev_positions
+        return sampled_grids, curr_position, self.previous_positions_map

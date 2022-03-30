@@ -6,12 +6,13 @@ from map_2D.aux_funcs import *
 import map_2D.agent2D as agent2D
 import time
 import map_2D.rrt_BHM as rrt_BHM
-valid_starting_points = [(113, 76), (52, 125), (182, 21), (81, 14), (75, 210), (202, 104), (151, 162)]  # X, Y
+valid_starting_points = [(113, 76), (52, 125), (182, 187), (81, 18), (75, 197), (193, 107), (151, 162)]  # X, Y
 import matplotlib.pyplot as plt
 
 # Training map
 gt = get_ground_truth_array(r'C:\Users\USER\IdeaProjects\PEDRA_CPU\map_2D\environments\filled_simple_floorplan.png')
-
+# plt.imshow(gt, 'Greys_r')
+# plt.show()
 # Paths
 plot_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/stats'
 weights_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights'
@@ -19,25 +20,26 @@ log_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/log'
 
 # Initialise variables
 iter = 0
-max_iters = 10000
+max_iters = 15000
 save_interval = max_iters // 5
 level = 0   # if implementing switching starting positions
+current_starting_pos_index = 0
 episode = 0  # how many times drone completed exploration
 moves_taken = 0
-epsilon_saturation = 10000
+epsilon_saturation = 15000
 epsilon_model = 'exponential'
 epsilon = 0  # start with drone always taking random actions
 cum_return = 0
-discount_factor = 0.8
-Q_clip = True   # clips TD error to -1, 1
-learning_rate = 2e-5
+discount_factor = 0.9
+Q_clip = False   # clips TD error to -1, 1
+learning_rate = 2e-6
 
 consecutive_fails = 0
-max_consecutive_fails = 5  # for debugging purposes
+max_consecutive_fails = 15  # for debugging purposes
 
 # RRT variables
-danger_radius = 5
-occ_threshold = 0.65
+danger_radius = 4
+occ_threshold = 0.7
 
 # SBHM variables
 gamma = 0.02
@@ -48,7 +50,7 @@ LIDAR_max_range = 50        # TODO: I'm not sure if changing the max range will 
 BHM = sbhm.SBHM(gamma=gamma, cell_resolution=cell_res, cell_max_min=min_max)
 
 # agent
-drone = agent2D.agent_2D(BHM=BHM, min_max=min_max, LIDAR_pixel_range=LIDAR_max_range, ground_truth_map=gt, starting_pos=valid_starting_points[0],
+drone = agent2D.agent_2D(BHM=BHM, min_max=min_max, LIDAR_pixel_range=LIDAR_max_range, ground_truth_map=gt, starting_pos=valid_starting_points[current_starting_pos_index],
                          plot_dir=plot_dir, weights_dir=weights_dir)
 drone.collect_data()    # need to do 1 fitting of BHM first before can query
 current_state = drone.get_state()
@@ -57,6 +59,8 @@ current_state = drone.get_state()
 # plt.show()
 print("******** SIMULATION BEGINS *********")
 # TRAINING LOOP
+log_file = open(log_dir + '/log.txt', mode='w')
+
 while True:
     start_time = time.time()
 
@@ -99,8 +103,15 @@ while True:
                     print("DRONE STUCKKKK")
                     print('drone_pos:', drone.position)
                     print('goal_pos:', goalpos)
-                    rrt_BHM.plot(G, drone.BHM, None)
+                    # rrt_BHM.plot(G, drone.BHM, None)
+                    drone.reset(fresh_BHM=sbhm.SBHM(gamma=gamma, cell_resolution=cell_res,cell_max_min=min_max),
+                                                                    starting_pos=valid_starting_points[current_starting_pos_index])
+                    current_state = drone.get_state()
+                    # don't +1 to episode, treat as same episode and reset move and return
+                    moves_taken = 0
+                    cum_return = 0
                     consecutive_fails = 0
+                    continue
             else:
                 consecutive_fails = 0
             moves_taken += 1
@@ -119,7 +130,7 @@ while True:
     #     print("CRASH OCCURED")
     #     drone.reset(fresh_BHM=sbhm.SBHM(gamma=gamma, cell_resolution=cell_res,
     #                                     cell_max_min=min_max),
-    #                 starting_pos=valid_starting_points[0])
+    #                 starting_pos=valid_starting_points[current_starting_pos_index])
     #     current_state = drone.get_state()
     #     # don't +1 to episode, treat as same episode and reset move and return
     #     moves_taken = 0
@@ -133,15 +144,15 @@ while True:
     if path_length != 0:
         free_mask = drone.get_free_mask()
         correct = np.logical_and(gt, free_mask)
-        plt.imshow(correct, cmap='Greys_r')
-        # plt.scatter(drone.position[0], drone.position[1], cmap='jet')
-        plt.draw()
-        plt.pause(0.001)
+        # plt.imshow(correct, cmap='Greys_r')
+        # # plt.scatter(drone.position[0], drone.position[1], cmap='jet')
+        # plt.draw()
+        # plt.pause(0.001)
         # drone.show_model()
         finished_ratio = np.sum(correct) / np.sum(gt)
         # print("Finished ratio:", finished_ratio)
 
-        if finished_ratio > 0.80:
+        if finished_ratio > 0.78:
             done = True
             reward += 1
 
@@ -162,7 +173,8 @@ while True:
 
     time_exec = time.time() - start_time
 
-    s_log = 'drone_2D - Level {:>2d} - Iter: {:>5d}/{:<4d} Action: {}-{:>5s} Eps: {:<1.4f} lr: {:>1.5f} Ret = {:<+6.4f} t={:<1.3f} Moves: {:<2} Steps: {:<3} Reward: {:<+1.4f}  '.format(
+    # TODO: Increase the dp of learning rate
+    s_log = 'drone_2D - Level {:>2d} - Iter: {:>5d}/{:<4d} Action: {}-{:>5s} Eps: {:<1.4f} lr: {:>1.6f} Ret = {:<+6.4f} t={:<1.3f} Moves: {:<2} Steps: {:<3} Reward: {:<+1.4f}  '.format(
         level,
         iter,
         episode,
@@ -178,8 +190,9 @@ while True:
         reward)
 
     print(s_log)    # TODO: ALSO PRINT TO LOG FILE NEXT TIME
+    log_file.write(s_log + '\n')
 
-    # IN VERY RARE CASES
+
     if done:
         drone.network_model.log_to_tensorboard(tag='Return', group='drone_2D',
                                                            value=cum_return,
@@ -193,7 +206,7 @@ while True:
 
         drone.reset(fresh_BHM=sbhm.SBHM(gamma=gamma, cell_resolution=cell_res,
                                         cell_max_min=min_max),
-                    starting_pos=valid_starting_points[0])
+                    starting_pos=valid_starting_points[current_starting_pos_index])
 
         current_state = drone.get_state()
 
@@ -202,12 +215,22 @@ while True:
         moves_taken = 0
         cum_return = 0
 
+        if episode % 3 == 0 and episode > 0:    # Change starting points every 3 Episodes
+            current_starting_pos_index += 1
+            if current_starting_pos_index == len(valid_starting_points):
+                current_starting_pos_index = 0
+            level = current_starting_pos_index
+            print("changing starting pos")
+
     else:
         current_state = new_state
 
     iter += 1
+
     if iter % save_interval == 0:
         drone.network_model.save_network(str(iter))
     if iter == max_iters:
         print("TRAINING DONE")
         break
+
+log_file.close()
