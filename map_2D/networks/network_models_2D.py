@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from map_2D.networks.loss_functions import huber_loss
 from map_2D.networks.network_2D import FCQN
+from map_2D.aux_funcs import action_idx_to_coords
 
 
 class initialize_network_FCQN:
@@ -103,6 +104,18 @@ class initialize_network_FCQN:
         action = np.unravel_index(np.argmax(qvals), (52, 52))
         # print('converted action:', action)
         return np.array([action])
+
+    def action_selection_non_repeat(self, curr_state_tuple, previous_coords, min_max):
+        grids, curr_positions, prev_positions = curr_state_tuple
+        qvals = self.sess.run(self.predict,
+                              feed_dict={self.batch_size: grids.shape[0],
+                                         self.sampled_grids: grids, self.current_position_map: curr_positions,
+                                         self.previous_position_map: prev_positions})
+        action_idx = np.unravel_index(np.argmax(qvals), (52, 52))
+        coords = action_idx_to_coords(action_idx, min_max)
+        repeated_action = coords in previous_coords
+        while repeated_action:
+            qvals[np.argmax(qvals)] = np.nan
 
     def log_to_tensorboard(self, tag, group, value, index):
         summary = tf.Summary()
