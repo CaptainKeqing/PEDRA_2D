@@ -3,6 +3,7 @@ import random
 import matplotlib.pyplot as plt
 from matplotlib import collections as mc
 from collections import deque
+import time
 
 """THIS FILE IS USED IN RELATION TO BAYESIAN HILBERT MAPS FOR *2D*"""
 
@@ -15,19 +16,15 @@ class Line:
         self.end = p1
 
 
-def bloom(point, radius, resolution_per_quadrant=4):
-    """Expand each point to have a comfort radius to prevent physical body crashing"""
-    # lets pretend we have a circle of radius = crash_radius around a point. For simplicity, that circle is
-    # represented with 8 equally spaced points. With x point forward and y to the right,
+def bloom(point, radius, resolution_per_quadrant=60):
     new_points = []
     for angle in np.arange(0, 2 * np.pi, (np.pi / 2) / resolution_per_quadrant):
         dy = radius * np.sin(angle)
         dx = radius * np.cos(angle)
-        point_on_circle = point + np.array([dx, dy])
-
+        point_on_circle = (point + np.array([dx, dy])).astype(int)
         new_points.append(point_on_circle)
 
-    return np.array(new_points)
+    return np.clip(new_points, 0, 223)  # less the initial 0, 0 point
 
 
 def bloom_series(line_of_points, radius, resolution_per_quadrant=4):
@@ -36,10 +33,27 @@ def bloom_series(line_of_points, radius, resolution_per_quadrant=4):
     for angle in np.arange(0, 2 * np.pi, (np.pi / 2) / resolution_per_quadrant):
         dy = radius * np.sin(angle)
         dx = radius * np.cos(angle)
-        line_of_points = np.vstack((line_of_points, initial_points + np.array([dx, dy])))
+        line_of_points = np.vstack((line_of_points, initial_points + np.array([dx, dy]))).astype(int)
 
-    return line_of_points
+    return np.clip(line_of_points, 0, 223)
 
+
+def intersection_with_BHM_np_array(line: Line, BHM_arr, crash_radius=10, line_includes_starting_point=False):
+    # TODO: NOTE crash radius must be higher during path generation to give some leeway
+    sample_rate = 10
+    occ_threshold = 0.7
+
+    if line_includes_starting_point:  # the explanation for this is basically, I found the algo does not work if the start is close to a wall. This prevents checking near the start pos.
+        points_on_line = np.array([line.end])
+    else:
+        points_on_line = np.linspace(line.start, line.end, sample_rate)
+
+    points_on_line = bloom_series(points_on_line, crash_radius, 15)
+    # s = time.time()
+    pred_occupancies = [BHM_arr[(p[1], p[0])] for p in points_on_line]
+    # print('time to query array', time.time()-s)
+    # as long as any predicted occupancy > threshold, considered occupied and cutting map obstacles
+    return any(occ_val > occ_threshold for occ_val in pred_occupancies)
 
 def intersection_with_BHM_map(line: Line, BHM_model_map, crash_radius=10, line_includes_starting_point=False):
     # TODO: NOTE crash radius must be higher during path generation to give some leeway
@@ -52,9 +66,9 @@ def intersection_with_BHM_map(line: Line, BHM_model_map, crash_radius=10, line_i
         points_on_line = np.linspace(line.start, line.end, sample_rate)
 
     points_on_line = bloom_series(points_on_line, crash_radius, 4)
-
+    # s = time.time()
     pred_occupancies = BHM_model_map.predict_proba(points_on_line)[:, 1]
-
+    # print('time to predict proba', time.time()-s)
     # as long as any predicted occupancy > threshold, considered occupied and cutting map obstacles
     return any(occ_val > occ_threshold for occ_val in pred_occupancies)
 
@@ -135,6 +149,79 @@ class Graph:
         posy = ry
         return posx, posy
 
+def RRT_n_star_np_arr(graph, BHM_np_arr, n_iter, radius, stepSize, crash_radius, n_retries_allowed=float('inf')):
+    """RRT n start algorithm where n denotes number of retries to finish"""
+    G = graph
+    times_finished = 0
+    # extra check for if start pos is already beside end pos, instant solve
+    dist = distance(G.startpos, G.endpos)
+    if dist < radius:
+        end_idx = G.add_vex(G.endpos)
+        G.add_edge(0, end_idx, dist)
+        G.distances[end_idx] = dist
+
+        G.success = True
+        return G
+
+    for step in range(n_iter):
+        if times_finished > n_retries_allowed:
+            break
+        rand_vex = G.random_position()
+
+        near_vex, near_idx = nearest(G, rand_vex)
+        if near_vex is None:
+            continue
+
+        new_vex = new_vertex(rand_vex, near_vex, stepSize)
+        if new_vex is None:
+            continue
+
+        new_line = Line(near_vex, new_vex)
+        if near_vex == G.startpos:
+            # print('line includes starting point')
+            intersects_map = intersection_with_BHM_np_array(new_line, BHM_np_arr,
+                                                       crash_radius=crash_radius, line_includes_starting_point=True)
+        else:
+            intersects_map = intersection_with_BHM_np_array(new_line, BHM_np_arr, crash_radius=crash_radius)
+        if intersects_map:
+            continue
+
+        new_idx = G.add_vex(new_vex)
+        dist = distance(new_vex, near_vex)
+        G.add_edge(new_idx, near_idx, dist)
+        G.distances[new_idx] = G.distances[near_idx] + dist
+
+        # update nearby vertices distance (if shorter)
+        for vex in G.vertices:
+            if vex == new_vex:
+                continue
+
+            dist = distance(vex, new_vex)
+            if dist > radius:
+                continue
+
+            line = Line(vex, new_vex)
+            if intersection_with_BHM_np_array(line, BHM_np_arr):
+                continue
+
+            idx = G.vex2idx[vex]
+            if G.distances[new_idx] + dist < G.distances[idx]:
+                G.add_edge(idx, new_idx, dist)
+                G.distances[idx] = G.distances[new_idx] + dist
+
+        dist = distance(new_vex, G.endpos)
+        if dist < 2 * radius:
+            end_idx = G.add_vex(G.endpos)
+            G.add_edge(new_idx, end_idx, dist)
+            try:
+                G.distances[end_idx] = min(G.distances[end_idx], G.distances[new_idx] + dist)
+            except:
+                G.distances[end_idx] = G.distances[new_idx] + dist
+
+            G.success = True
+            times_finished += 1
+    # print('steps', step)
+    return G
 
 def RRT_n_star(graph, BHM_model_map, n_iter, radius, stepSize, crash_radius, n_retries_allowed=float('inf')):
     """RRT n start algorithm where n denotes number of retries to finish"""
