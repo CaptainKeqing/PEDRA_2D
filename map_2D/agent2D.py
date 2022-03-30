@@ -46,7 +46,7 @@ class agent_2D:
         :returns True, path length if safe travel, False, path_length if dangerous
         """
 
-        danger_radius = 4
+        danger_radius = 5
         occ_threshold = 0.7
         path_length = 0
 
@@ -83,7 +83,7 @@ class agent_2D:
         if neighbours_inc_c is not None:
             for p in neighbours_inc_c:
                 px, py = p
-                value_increment = 0.03 if (p == self.position) else 0.01
+                value_increment = 0.5 if (p == self.position) else 0.3
                 self.previous_positions_map[0, py, px, 0] += value_increment
         else:   # None neighbours means edge
             px, py = self.position
@@ -107,7 +107,9 @@ class agent_2D:
         # print('time to fit', time.time()-s)
 
     def show_model(self):
+
         y_pred = self.BHM.predict_proba(self.qX)[:, 1]
+        print(len(y_pred))
         plt.scatter(self.qX[:, 0], self.qX[:, 1], c=y_pred, s=4, cmap='jet')
         plt.colorbar()
         plt.scatter(self.BHM.grid[:, 0], self.BHM.grid[:, 1])
@@ -124,8 +126,8 @@ class agent_2D:
         return mask
 
     def reward_gen(self, length_of_path, goal_in_unknown_space=False, safe_travel=True):
-        alpha = 0.002  # make training process more stable
-        p_coeff = 2  # dictate how much to penalise path length
+        alpha = 0.003  # make training process more stable
+        p_coeff = 0.4  # dictate how much to penalise path length
 
         if length_of_path == 0:  # no exploration done this iter
             return -1   # penalise failing to find goal, or goal too close to obstacle (accounted for in main code)
@@ -137,11 +139,7 @@ class agent_2D:
         previous_RE = self.relative_entropy(self.previous_BHM, baseline=0.5)
         current_RE = self.relative_entropy(self.BHM, baseline=0.5)
         gain_in_RE = current_RE - previous_RE
-        # print('RE previous', previous_RE)
-        # print('RE current', current_RE)
-        # print('gain in RE', gain_in_RE)
-        # print('path length', length_of_path)
-        reward = alpha * (gain_in_RE - p_coeff * length_of_path)
+        reward = alpha * (gain_in_RE - p_coeff * length_of_path) - 0.7  # Extra -0.8 tagged on to hopefully reduce number of Goal points generated
 
         # ----- reward concerning safety of agent -----
         reward -= 1 if goal_in_unknown_space else 0
@@ -164,5 +162,5 @@ class agent_2D:
 
         px, py = self.position
         curr_position[0, py, px, 0] = 1
-
+        # print('sim prev', np.sum(self.previous_positions_map))
         return sampled_grids, curr_position, self.previous_positions_map

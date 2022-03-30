@@ -13,8 +13,8 @@ gt = get_ground_truth_array(r'C:\Users\USER\IdeaProjects\PEDRA_CPU\map_2D\enviro
 # plt.show()
 
 # Paths
-custom_load_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights/drone_2D_8000'
-log_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/inference/infer_log'
+custom_load_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights/drone_2D_4000'
+log_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/inference/infer_log.txt'
 
 # RRT variables
 danger_radius = 4
@@ -40,16 +40,21 @@ minimum_finished_ratio = 0.77
 
 plt.ion()
 plt.show()
+log_file = open(log_dir, mode='w')
 print("******** INFERENCE BEGINS *********")
 while True:
     action = drone.network_model.action_selection(current_state)
+    drone.network_model.
     print("Action Selected:", action[0])
+    print("Coordinate",action_idx_to_coords(action[0], min_max))
+    log_file.write("Action Selected: {}".format(action[0]))
+    log_file.write("Coordinate: {}".format(action_idx_to_coords(action[0], min_max)))
     # RRT* Algo
     startpos = drone.position
     goalpos = action_idx_to_coords(action[0], min_max)
 
     G = rrt_BHM.Graph(startpos, goalpos, min_max)
-    G = rrt_BHM.RRT_n_star(G, drone.BHM, n_iter=300, radius=5, stepSize=14, crash_radius=5, n_retries_allowed=0)
+    G = rrt_BHM.RRT_n_star(G, drone.BHM, n_iter=450, radius=5, stepSize=14, crash_radius=5, n_retries_allowed=0)
 
     if G.success:
         path = rrt_BHM.dijkstra(G)
@@ -57,6 +62,7 @@ while True:
         path = [(int(elem[0]), int(elem[1])) for elem in path]
 
         _, path_length = drone.move_by_sequence(path[1:])  # exclude first point
+        cum_path_length += path_length
 
     else:
         path_length = 0
@@ -72,6 +78,7 @@ while True:
         # drone.show_model()
         finished_ratio = np.sum(correct) / np.sum(gt)
         print("Finished ratio:", finished_ratio)
+        log_file.write("Finished ratio: {}".format(finished_ratio))
 
         if finished_ratio > minimum_finished_ratio:
             done = True
@@ -84,6 +91,7 @@ while True:
     if done:
         print("******** EXPLORATION DONE *********")
         print("Path Length:", cum_path_length)
+        log_file.write("Path Length: {}".format(path_length))
         print("Finished ratio:", finished_ratio)
         break
 

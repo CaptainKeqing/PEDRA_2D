@@ -20,13 +20,13 @@ log_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/log'
 
 # Initialise variables
 iter = 0
-max_iters = 15000
+max_iters = 10000
 save_interval = max_iters // 5
 level = 0   # if implementing switching starting positions
 current_starting_pos_index = 0
 episode = 0  # how many times drone completed exploration
 moves_taken = 0
-epsilon_saturation = 15000
+epsilon_saturation = 10000
 epsilon_model = 'exponential'
 epsilon = 0  # start with drone always taking random actions
 cum_return = 0
@@ -38,7 +38,7 @@ consecutive_fails = 0
 max_consecutive_fails = 15  # for debugging purposes
 
 # RRT variables
-danger_radius = 4
+danger_radius = 5
 occ_threshold = 0.7
 
 # SBHM variables
@@ -86,8 +86,10 @@ while True:
         safe_travel = None
     else:
         G = rrt_BHM.Graph(startpos, goalpos, min_max)
-        G = rrt_BHM.RRT_n_star(G, drone.BHM, n_iter=300, radius=5,      # RRT Params must be modified based on the environment, but this is not an issue of the agent
-                               stepSize=14, crash_radius=5, n_retries_allowed=0)
+        # G = rrt_BHM.RRT_n_star(G, drone.BHM, n_iter=450, radius=5,      # RRT Params must be modified based on the environment, but this is not an issue of the agent
+        #                        stepSize=14, crash_radius=5, n_retries_allowed=0)
+        G = rrt_BHM.RRT_n_star_np_arr(G, np.reshape(drone.BHM.predict_proba(drone.qX)[:, 1], (224, 224)),
+                                      n_iter=500, radius=5, stepSize=14, crash_radius=5, n_retries_allowed=0)
         if G.success:
             path = rrt_BHM.dijkstra(G)
             # print('start', drone.position)

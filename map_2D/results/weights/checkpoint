@@ -1,0 +1,3 @@
+model_checkpoint_path: "C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights/drone_2D_4000"
+all_model_checkpoint_paths: "C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights/drone_2D_2000"
+all_model_checkpoint_paths: "C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights/drone_2D_4000"
