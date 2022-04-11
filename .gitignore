@@ -1,9 +1,5 @@
 # Default ignored files
-.idea/**/workspace.xml
-.idea/**/tasks.xml
-.idea/**/usage.statistics.xml
-.idea/**/dictionaries
-.idea/**/shelf
+*.idea
 
 # Byte-compiled / optimized / DLL files
 map_2D/**/__pycache__
