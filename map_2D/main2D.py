@@ -46,7 +46,7 @@ occ_threshold = 0.7
 gamma = 0.02
 cell_res = (12, 12)
 min_max = (0, 223, 0, 223)
-LIDAR_max_range = 50        # TODO: I'm not sure if changing the max range will affect something.. But i want it to be more of a challenge for this environment
+LIDAR_max_range = 50    # in pixels
 
 BHM = sbhm.SBHM(gamma=gamma, cell_resolution=cell_res, cell_max_min=min_max)
 
@@ -65,12 +65,12 @@ log_file = open(log_dir + '/log.txt', mode='w')
 while True:
     start_time = time.time()
 
-    # action, action_type, epsilon = policy_FCQN(epsilon, current_state,
-    #                                            iter, epsilon_saturation, 'exponential', drone)
-    action, action_type, epsilon = policy_FCQN_no_dupe(epsilon, current_state,
-                                                       iter, epsilon_saturation, 'exponential', drone)
+    action, action_type, epsilon = policy_FCQN(epsilon, current_state,
+                                               iter, epsilon_saturation, 'exponential', drone)
+    # action, action_type, epsilon = policy_FCQN_no_dupe(epsilon, current_state,
+    #                                                    iter, epsilon_saturation, 'exponential', drone)
 
-    drone.previous_actions.add(tuple(action[0]))    # TODO: Hide this working so won't forget to do
+    drone.previous_actions.add(tuple(action[0]))    # TODO: Hide this working into drone class so won't forget to do
 
     # RRT* algo
     startpos = drone.position
@@ -160,7 +160,6 @@ while True:
 
     time_exec = time.time() - start_time
 
-    # TODO: Increase the dp of learning rate
     s_log = 'drone_2D - Level {:>2d} - Iter: {:>5d}/{:<4d} Action: {}-{:>5s} Eps: {:<1.4f} lr: {:>1.6f} Ret = {:<+6.4f} t={:<1.3f} Moves: {:<2} Steps: {:<3} Reward: {:<+1.4f}  '.format(
         level,
         iter,
@@ -172,11 +171,10 @@ while True:
         cum_return,
         time_exec,
         moves_taken,
-        # len(drone.previous_positions),
         drone.steps_taken,
         reward)
 
-    print(s_log)    # TODO: ALSO PRINT TO LOG FILE NEXT TIME
+    print(s_log)
     log_file.write(s_log + '\n')
 
 

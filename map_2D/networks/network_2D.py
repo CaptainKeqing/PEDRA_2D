@@ -2,10 +2,7 @@ import tensorflow as tf
 
 
 class FCQN:
-    # TODO: Now im reshaping my input to be (1, 224, 224, 1), only to unshape it back to 2 dimensions afterwards.
-    #  To optimise, see hwo to change the layers to accept 2D rather than 4D
-
-    def __init__(self, X):    # TODO: NOW, HARDCODED AS 52x52 action space
+    def __init__(self, X):    # TODO: NOW, HARDCODED AS 52x52 action space, can it be more flexible?
         self.X = X
         # print(self.X.shape)
         self.conv1 = self.conv(self.X, k=5, out=96, s=1, p='VALID')
@@ -30,14 +27,7 @@ class FCQN:
         # print("SELF value shape", self.value.shape)
 
         # Q value of each point action
-        self.output = tf.reshape((self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, keep_dims=True)))[0, :, :, 0], [-1])
-        # self.output = [item for sublist in self.output0 for item in sublist]
-        print(self.output.shape)
-        # flattened_output = tf.reshape(self.output, [-1])
-        # print('flatten', flattened_output.shape)
-        # arr = np.array([[3, 6], [4, 5]])
-        # print(np.ravel_multi_index(arr, self.output.shape))
-        # print(int(self.output.shape[0])**2)
+        self.output = tf.reshape((self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, keep_dims=True)))[0, :, :, 0], [-1])  # flattened
 
     @staticmethod
     def conv(input, k, out, s, p, trainable=True):
@@ -45,8 +35,6 @@ class FCQN:
         b = tf.Variable(tf.truncated_normal(shape=[out], stddev=0.05), trainable=trainable)
 
         conv_kernel_1 = tf.nn.conv2d(input, W, [1, s, s, 1], padding=p)
-        # print("CONV KERNEL 1 SHAPE", conv_kernel_1.shape)
         bias_layer_1 = tf.nn.bias_add(conv_kernel_1, tf.Variable(b, trainable))
-        # print("bias layer 1 SHAPE", bias_layer_1.shape)
 
         return tf.nn.relu(bias_layer_1)

@@ -3,7 +3,7 @@ import random
 import matplotlib.pyplot as plt
 from matplotlib import collections as mc
 from collections import deque
-import time
+from aux_funcs import bloom_series
 
 """THIS FILE IS USED IN RELATION TO BAYESIAN HILBERT MAPS FOR *2D*"""
 
@@ -16,29 +16,8 @@ class Line:
         self.end = p1
 
 
-def bloom(point, radius, resolution_per_quadrant=60):
-    new_points = []
-    for angle in np.arange(0, 2 * np.pi, (np.pi / 2) / resolution_per_quadrant):
-        dy = radius * np.sin(angle)
-        dx = radius * np.cos(angle)
-        point_on_circle = (point + np.array([dx, dy])).astype(int)
-        new_points.append(point_on_circle)
-
-    return np.clip(new_points, 0, 223)  # less the initial 0, 0 point
-
-
-def bloom_series(line_of_points, radius, resolution_per_quadrant=4):
-    """Bloom but applied to all points at once, faster"""
-    initial_points = line_of_points
-    for angle in np.arange(0, 2 * np.pi, (np.pi / 2) / resolution_per_quadrant):
-        dy = radius * np.sin(angle)
-        dx = radius * np.cos(angle)
-        line_of_points = np.vstack((line_of_points, initial_points + np.array([dx, dy]))).astype(int)
-
-    return np.clip(line_of_points, 0, 223)
-
-
 def intersection_with_BHM_np_array(line: Line, BHM_arr, crash_radius=10, line_includes_starting_point=False):
+    """Same as `intersection_with_BHM_map` just working with np arr instead, see `RRT_n_star_np_arr` for explanation"""
     # TODO: NOTE crash radius must be higher during path generation to give some leeway
     sample_rate = 10
     occ_threshold = 0.7
@@ -49,11 +28,12 @@ def intersection_with_BHM_np_array(line: Line, BHM_arr, crash_radius=10, line_in
         points_on_line = np.linspace(line.start, line.end, sample_rate)
 
     points_on_line = bloom_series(points_on_line, crash_radius, 15)
-    # s = time.time()
+
     pred_occupancies = [BHM_arr[(p[1], p[0])] for p in points_on_line]
-    # print('time to query array', time.time()-s)
+
     # as long as any predicted occupancy > threshold, considered occupied and cutting map obstacles
     return any(occ_val > occ_threshold for occ_val in pred_occupancies)
+
 
 def intersection_with_BHM_map(line: Line, BHM_model_map, crash_radius=10, line_includes_starting_point=False):
     # TODO: NOTE crash radius must be higher during path generation to give some leeway
@@ -66,9 +46,9 @@ def intersection_with_BHM_map(line: Line, BHM_model_map, crash_radius=10, line_i
         points_on_line = np.linspace(line.start, line.end, sample_rate)
 
     points_on_line = bloom_series(points_on_line, crash_radius, 4)
-    # s = time.time()
+
     pred_occupancies = BHM_model_map.predict_proba(points_on_line)[:, 1]
-    # print('time to predict proba', time.time()-s)
+
     # as long as any predicted occupancy > threshold, considered occupied and cutting map obstacles
     return any(occ_val > occ_threshold for occ_val in pred_occupancies)
 
@@ -149,8 +129,14 @@ class Graph:
         posy = ry
         return posx, posy
 
+
 def RRT_n_star_np_arr(graph, BHM_np_arr, n_iter, radius, stepSize, crash_radius, n_retries_allowed=float('inf')):
-    """RRT n start algorithm where n denotes number of retries to finish"""
+    """RRT n star algorithm where n denotes number of retries to finish
+
+    Same as `RRT_n_star` but this works with np array while that works with Bayesian Hilbert map.
+    The difference is working with np array is much faster, but requires you to query BHM in main code and reshape to
+    np array first
+    """
     G = graph
     times_finished = 0
     # extra check for if start pos is already beside end pos, instant solve
@@ -180,7 +166,7 @@ def RRT_n_star_np_arr(graph, BHM_np_arr, n_iter, radius, stepSize, crash_radius,
         if near_vex == G.startpos:
             # print('line includes starting point')
             intersects_map = intersection_with_BHM_np_array(new_line, BHM_np_arr,
-                                                       crash_radius=crash_radius, line_includes_starting_point=True)
+                                                            crash_radius=crash_radius, line_includes_starting_point=True)
         else:
             intersects_map = intersection_with_BHM_np_array(new_line, BHM_np_arr, crash_radius=crash_radius)
         if intersects_map:
@@ -223,8 +209,9 @@ def RRT_n_star_np_arr(graph, BHM_np_arr, n_iter, radius, stepSize, crash_radius,
     # print('steps', step)
     return G
 
+
 def RRT_n_star(graph, BHM_model_map, n_iter, radius, stepSize, crash_radius, n_retries_allowed=float('inf')):
-    """RRT n start algorithm where n denotes number of retries to finish"""
+    """RRT n star algorithm where n denotes number of retries to finish"""
     G = graph
     times_finished = 0
     # extra check for if start pos is already beside end pos, instant solve

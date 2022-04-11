@@ -2,8 +2,7 @@ import tensorflow as tf
 import numpy as np
 from map_2D.networks.loss_functions import huber_loss
 from map_2D.networks.network_2D import FCQN
-from map_2D.aux_funcs import action_idx_to_coords
-import time
+
 
 class initialize_network_FCQN:
     def __init__(self, plot_directory: str, save_weights_dir: str, custom_load_path=None):
@@ -15,7 +14,6 @@ class initialize_network_FCQN:
             self.stat_writer = tf.summary.FileWriter(stat_writer_path)
 
             self.input_size = 224
-            # self.num_actions = cfg.num_actions
 
             # Placeholders
             self.batch_size = tf.placeholder(tf.int32, shape=())
@@ -31,9 +29,9 @@ class initialize_network_FCQN:
             self.action = tf.placeholder(tf.int32, shape=[None, 2],   name='Actions')
 
             self.model = FCQN(self.X)
-            self.action_space = 52 ** 2     # assuming square action space (real size need not be square)
-            self.predict = self.model.output
-            action_flattened_index = self.action[0][0] * 52 + self.action[0][1]  # TODO: This assumes [0] is height and [1] is width, height is actually y and width is x
+            self.action_space = 52 ** 2
+            self.predict = self.model.output    # for simplicity, i flattened my model output to 2704 (52 ** 2)
+            action_flattened_index = self.action[0][0] * 52 + self.action[0][1]
             # self.actions = np.ravel_multi_index(self.actions, self.model.output.shape)
             # print('action:', self.action[0])
             # print('action flattened index:', action_flattened_index.shape)
@@ -41,7 +39,7 @@ class initialize_network_FCQN:
 
             # self.flattened_output = tf.placeholder(tf.float32, shape=(None, 2704), name='Flattened_weights')
 
-            # flattened_output = tf.reshape(self.model.output, [-1])      # TODO: COuld it be the gradient cannot travel back cause i reshape?
+            # flattened_output = tf.reshape(self.model.output, [-1])
             # print('flattened_output', self.flattened_output)
             pred_Q = tf.reduce_sum(
                 tf.multiply(self.model.output, ind),
@@ -49,7 +47,6 @@ class initialize_network_FCQN:
             # print('pred_Q', pred_Q)
             self.loss = huber_loss(pred_Q, self.target)     # original paper used MSE
 
-            # self.compute = tf.train.AdamOptimizer(learning_rate=self.learning_rate, beta1=0.9, beta2=0.99).compute_gradients(self.loss)
             self.train = tf.train.AdamOptimizer(learning_rate=self.learning_rate, beta1=0.9, beta2=0.99).minimize(
                 self.loss, name="train")
 
@@ -106,7 +103,7 @@ class initialize_network_FCQN:
         return np.array([action])
 
     def action_selection_non_repeat(self, curr_state_tuple, previous_actions):
-        """Returns a (2, ) shape python list compared to (1, 2) np array in action selection"""
+        """Same as action selection, but extra filtering to prevent repeated actions"""
         grids, curr_positions, prev_positions = curr_state_tuple
         qvals = self.sess.run(self.predict,
                               feed_dict={self.batch_size: grids.shape[0],
@@ -120,8 +117,6 @@ class initialize_network_FCQN:
                 qvals[np.argmax(qvals)] = -np.inf
             else:
                 return np.array([action_idx])
-
-
 
     def log_to_tensorboard(self, tag, group, value, index):
         summary = tf.Summary()

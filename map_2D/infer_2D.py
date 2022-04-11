@@ -23,7 +23,7 @@ occ_threshold = 0.7
 gamma = 0.02
 cell_res = (12, 12)
 min_max = (0, 223, 0, 223)
-LIDAR_max_range = 76        # TODO: I'm not sure if changing the max range will affect something.. But i want it to be more of a challenge for this environment
+LIDAR_max_range = 76
 
 BHM = sbhm.SBHM(gamma=gamma, cell_resolution=cell_res, cell_max_min=min_max)
 
@@ -45,7 +45,7 @@ print("******** INFERENCE BEGINS *********")
 
 while True:
     no_dupe = drone.network_model.action_selection_non_repeat(current_state, drone.previous_actions)
-    # no_dupe = np.random.randint(0, 52, (2, ))
+
     print('no dupe actoin', no_dupe[0])
     # RRT* Algo
     startpos = drone.position
