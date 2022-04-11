@@ -1,5 +1,5 @@
 # Default ignored files
-.*idea/
+\.idea/
 
 # Byte-compiled / optimized / DLL files
 map_2D/**/__pycache__
