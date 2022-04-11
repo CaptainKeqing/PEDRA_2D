@@ -6,7 +6,7 @@
 .idea/**/shelf
 
 # Byte-compiled / optimized / DLL files
-map_2D/__pycache__/
+map_2D/**/__pycache__/
 *.py[cod]
 *$py.class
 *.pyc
