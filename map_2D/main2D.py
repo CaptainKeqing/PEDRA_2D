@@ -9,15 +9,15 @@ import map_2D.rrt_BHM as rrt_BHM
 valid_starting_points = [(113, 76), (52, 125), (182, 187), (81, 18), (75, 197), (193, 107), (151, 162)]  # X, Y
 
 # Training map
-gt = get_ground_truth_array(r'C:\Users\USER\IdeaProjects\PEDRA_CPU\map_2D\environments\filled_simple_floorplan.png')
+gt = get_ground_truth_array(r'C:\Users\USER\IdeaProjects\PEDRA_2D\map_2D\environments\filled_simple_floorplan.png')
 # plt.imshow(gt, 'Greys_r')
 # plt.show()
 # Paths
-plot_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/stats'
-weights_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights'
-log_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/log'
+plot_dir = 'C:/Users/USER/IdeaProjects/PEDRA_2D/map_2D/results/stats'
+weights_dir = 'C:/Users/USER/IdeaProjects/PEDRA_2D/map_2D/results/weights'
+log_dir = 'C:/Users/USER/IdeaProjects/PEDRA_2D/map_2D/results/log'
 
-custom_load = r'C:\Users\USER\IdeaProjects\PEDRA_CPU\map_2D\weights_archive\2903_looks_decent\drone_2D_10000'
+custom_load = r'C:\Users\USER\IdeaProjects\PEDRA_2D\map_2D\weights_archive\2903_looks_decent\drone_2D_10000'
 
 # Initialise variables
 iter = 0
