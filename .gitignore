@@ -1,3 +1,10 @@
+# Default ignored files
+/shelf/
+/.idea
 
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 *.pyc
-map_2D/results/stats
+

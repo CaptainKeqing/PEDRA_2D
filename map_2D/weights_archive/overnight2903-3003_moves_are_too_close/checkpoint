@@ -1,5 +1,0 @@
-model_checkpoint_path: "C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights/drone_2D_12000"
-all_model_checkpoint_paths: "C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights/drone_2D_3000"
-all_model_checkpoint_paths: "C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights/drone_2D_6000"
-all_model_checkpoint_paths: "C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights/drone_2D_9000"
-all_model_checkpoint_paths: "C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights/drone_2D_12000"

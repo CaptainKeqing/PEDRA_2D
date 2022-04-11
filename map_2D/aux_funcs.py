@@ -170,6 +170,29 @@ def policy_FCQN(epsilon, curr_state_tuple, iter, b, epsilon_model, agent):
 
     return action, action_type, epsilon
 
+def policy_FCQN_no_dupe(epsilon, curr_state_tuple, iter, b, epsilon_model, agent):
+    base = -0.05
+    epsilon_ceil = 0.95
+    if epsilon_model == 'linear':
+        epsilon = base + epsilon_ceil * iter / b
+        if epsilon > epsilon_ceil:
+            epsilon = epsilon_ceil
+
+    elif epsilon_model == 'exponential':
+        epsilon = base + 1 - np.exp(-2 / b * iter)
+        if epsilon > epsilon_ceil:
+            epsilon = epsilon_ceil
+
+    if np.random.random() > epsilon:
+        action = np.random.randint(0, 52, size=(1, 2), dtype=np.int32)
+        action_type = 'Rand'
+    else:
+        # Use NN to predict action
+        action = agent.network_model.action_selection_non_repeat(curr_state_tuple, agent.previous_actions)
+        action_type = 'Pred'
+
+    return action, action_type, epsilon
+
 
 def action_idx_to_coords(action, min_max):
     # NOTE: action is given in terms of row, column, which means [0] relates to Y while [1] relates to X

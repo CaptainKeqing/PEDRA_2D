@@ -21,6 +21,7 @@ class agent_2D:
         self.position = starting_pos
         self.previous_positions = set()
         self.previous_positions_map = np.zeros((1, 224, 224, 1), dtype=np.float32)
+        self.previous_actions = set()
         self.steps_taken = 0
         self.range = LIDAR_pixel_range
         self.gt = ground_truth_map
@@ -35,7 +36,7 @@ class agent_2D:
         self.position = starting_pos
         self.previous_positions = set()
         self.previous_positions_map = np.zeros((1, 224, 224, 1), dtype=np.float32)
-
+        self.previous_actions = set()
         self.steps_taken = 0
         self.collect_data()
 

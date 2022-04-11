@@ -3,11 +3,10 @@
 # and the second index is width (which is X)
 import Bayesian_Hilbert_Maps.BHM.original.sbhm as sbhm
 from map_2D.aux_funcs import *
-import map_2D.agent2D as agent2D
+import map_2D.networks.agent2D as agent2D
 import time
 import map_2D.rrt_BHM as rrt_BHM
 valid_starting_points = [(113, 76), (52, 125), (182, 187), (81, 18), (75, 197), (193, 107), (151, 162)]  # X, Y
-import matplotlib.pyplot as plt
 
 # Training map
 gt = get_ground_truth_array(r'C:\Users\USER\IdeaProjects\PEDRA_CPU\map_2D\environments\filled_simple_floorplan.png')
@@ -17,6 +16,8 @@ gt = get_ground_truth_array(r'C:\Users\USER\IdeaProjects\PEDRA_CPU\map_2D\enviro
 plot_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/stats'
 weights_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/weights'
 log_dir = 'C:/Users/USER/IdeaProjects/PEDRA_CPU/map_2D/results/log'
+
+custom_load = r'C:\Users\USER\IdeaProjects\PEDRA_CPU\map_2D\weights_archive\2903_looks_decent\drone_2D_10000'
 
 # Initialise variables
 iter = 0
@@ -51,7 +52,7 @@ BHM = sbhm.SBHM(gamma=gamma, cell_resolution=cell_res, cell_max_min=min_max)
 
 # agent
 drone = agent2D.agent_2D(BHM=BHM, min_max=min_max, LIDAR_pixel_range=LIDAR_max_range, ground_truth_map=gt, starting_pos=valid_starting_points[current_starting_pos_index],
-                         plot_dir=plot_dir, weights_dir=weights_dir)
+                         plot_dir=plot_dir, weights_dir=weights_dir, custom_load=custom_load)
 drone.collect_data()    # need to do 1 fitting of BHM first before can query
 current_state = drone.get_state()
 
@@ -64,8 +65,12 @@ log_file = open(log_dir + '/log.txt', mode='w')
 while True:
     start_time = time.time()
 
-    action, action_type, epsilon = policy_FCQN(epsilon, current_state,
-                                               iter, epsilon_saturation, 'exponential', drone)
+    # action, action_type, epsilon = policy_FCQN(epsilon, current_state,
+    #                                            iter, epsilon_saturation, 'exponential', drone)
+    action, action_type, epsilon = policy_FCQN_no_dupe(epsilon, current_state,
+                                                       iter, epsilon_saturation, 'exponential', drone)
+
+    drone.previous_actions.add(tuple(action[0]))    # TODO: Hide this working so won't forget to do
 
     # RRT* algo
     startpos = drone.position
@@ -92,13 +97,10 @@ while True:
                                       n_iter=500, radius=5, stepSize=14, crash_radius=5, n_retries_allowed=0)
         if G.success:
             path = rrt_BHM.dijkstra(G)
-            # print('start', drone.position)
-            # print('goal', goalpos)
-            # print('action', action[0])
-            # rrt_BHM.plot(G, drone.BHM, path)
             path = [(int(elem[0]), int(elem[1])) for elem in path]
 
             safe_travel, path_length = drone.move_by_sequence(path[1:])  # exclude first point
+
             if path_length == 0:
                 consecutive_fails += 1
                 if consecutive_fails == max_consecutive_fails:
@@ -123,22 +125,6 @@ while True:
             path_length = 0
             safe_travel = None
 
-    # In very rare cases (happened once after 1500 iters), drone will actually get stuck in a wall. Crash checking.
-    # If clip into wall, just do a hard reset and dont do any training for that move.
-    # print('drone position:', drone.position)
-    # neighbours = neighbours_including_center(drone.position)    # radius of 1 only, crash shouldn't happen normally
-    #
-    # if neighbours is None or any(gt[p[1], p[0]] == 0 for p in neighbours):   # drone position is x, y. However to index a 2D array, index by row (y) then col (x)
-    #     print("CRASH OCCURED")
-    #     drone.reset(fresh_BHM=sbhm.SBHM(gamma=gamma, cell_resolution=cell_res,
-    #                                     cell_max_min=min_max),
-    #                 starting_pos=valid_starting_points[current_starting_pos_index])
-    #     current_state = drone.get_state()
-    #     # don't +1 to episode, treat as same episode and reset move and return
-    #     moves_taken = 0
-    #     cum_return = 0
-    #     continue  # skip rest of the iteration
-
     reward = drone.reward_gen(path_length, goal_in_unknown_space=goal_in_unknown_space, safe_travel=safe_travel)
 
     # check for completeness and update state, only if moved
@@ -147,7 +133,6 @@ while True:
         free_mask = drone.get_free_mask()
         correct = np.logical_and(gt, free_mask)
         # plt.imshow(correct, cmap='Greys_r')
-        # # plt.scatter(drone.position[0], drone.position[1], cmap='jet')
         # plt.draw()
         # plt.pause(0.001)
         # drone.show_model()
